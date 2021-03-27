@@ -10,18 +10,13 @@ var SCORE_MATCH_WORD = 0.8
 var SCORE_MATCH_CAPITAL = 0.7
 var SCORE_MATCH_DOT = 0.6
 
-function islower(s) {
-    return s.toLowerCase() === s;
-}
-
-function isupper(s) {
-    return s.toUpperCase() === s;
-}
+const islower = s => s.toLowerCase() === s;
+const isupper = s => s.toUpperCase() === s;
 
 function precompute_bonus(haystack) {
     /* Which positions are beginning of words */
     var m = haystack.length;
-    var match_bonus = new Array(m);
+    var match_bonus = Array(m);
 
     var last_ch = '/';
     for (var i = 0; i < m; i++) {
@@ -45,14 +40,16 @@ function precompute_bonus(haystack) {
     return match_bonus;
 }
 
-function compute(needle, haystack, D, M) {
+function compute(needle, haystack) {
+    const D = Array(n);
+    const M = Array(n);
     var n = needle.length;
     var m = haystack.length;
 
     var lower_needle = needle.toLowerCase();
     var lower_haystack = haystack.toLowerCase();
 
-    var match_bonus = precompute_bonus(haystack, match_bonus);
+    var match_bonus = precompute_bonus(haystack);
 
     /*
      * D[][] Stores the best score for this position ending with a match.
@@ -60,8 +57,8 @@ function compute(needle, haystack, D, M) {
      */
 
     for (var i = 0; i < n; i++) {
-        D[i] = new Array(m);
-        M[i] = new Array(m);
+        D[i] = Array(m);
+        M[i] = Array(m);
 
         var prev_score = SCORE_MIN;
         var gap_score = i === n - 1 ? SCORE_GAP_TRAILING : SCORE_GAP_INNER;
@@ -69,9 +66,9 @@ function compute(needle, haystack, D, M) {
         for (var j = 0; j < m; j++) {
             if (lower_needle[i] === lower_haystack[j]) {
                 var score = SCORE_MIN;
-                if (!i) {
+                if (!i)
                     score = (j * SCORE_GAP_LEADING) + match_bonus[j];
-                } else if (j) { /* i > 0 && j > 0*/
+                else if (j) { /* i > 0 && j > 0*/
                     score = Math.max(
                         M[i - 1][j - 1] + match_bonus[j],
 
@@ -80,12 +77,14 @@ function compute(needle, haystack, D, M) {
                 }
                 D[i][j] = score;
                 M[i][j] = prev_score = Math.max(score, prev_score + gap_score);
-            } else {
+            }
+            else {
                 D[i][j] = SCORE_MIN;
                 M[i][j] = prev_score = prev_score + gap_score;
             }
         }
     }
+    return [D, M];
 }
 
 function score(needle, haystack) {
@@ -112,10 +111,7 @@ function score(needle, haystack) {
         return SCORE_MIN;
     }
 
-    var D = new Array(n);
-    var M = new Array(n);
-
-    compute(needle, haystack, D, M)
+    const [D, M] = compute(needle, haystack);
 
     return M[n - 1][m - 1];
 }
@@ -124,7 +120,7 @@ function positions(needle, haystack) {
     var n = needle.length;
     var m = haystack.length;
 
-    var positions = new Array(n);
+    var positions = Array(n);
 
     if (!n || !m)
         return positions;
@@ -139,10 +135,7 @@ function positions(needle, haystack) {
         return positions;
     }
 
-    var D = new Array(n);
-    var M = new Array(n);
-
-    compute(needle, haystack, D, M)
+    const [D, M] = compute(needle, haystack);
 
     /* backtrack to find the positions of optimal matching */
     var match_required = false;
@@ -157,15 +150,12 @@ function positions(needle, haystack) {
              * we encounter, the latest in the candidate
              * string.
              */
-            if (D[i][j] !== SCORE_MIN &&
-                (match_required || D[i][j] === M[i][j])) {
+            if (D[i][j] !== SCORE_MIN && (match_required || D[i][j] === M[i][j])) {
                 /* If this score was determined using
                  * SCORE_MATCH_CONSECUTIVE, the
                  * previous character MUST be a match
                  */
-                match_required =
-                    i && j &&
-                    M[i][j] === D[i - 1][j - 1] + SCORE_MATCH_CONSECUTIVE;
+                match_required = i && j && M[i][j] === D[i - 1][j - 1] + SCORE_MATCH_CONSECUTIVE;
                 positions[i] = j--;
                 break;
             }
@@ -175,33 +165,17 @@ function positions(needle, haystack) {
     return positions;
 }
 
-function hasMatch(needle, haystack) {
-  needle = needle.toLowerCase()
-  haystack = haystack.toLowerCase()
-  var l = needle.length
-  for (var i = 0, j = 0; i < l; i += 1) {
-    j = haystack.indexOf(needle[i], j) + 1
-    if (j === 0) return false
-  }
-  return true
+function highlight(needle, haystack) {
+    const indexes = positions(needle, haystack);
+    haystack = [...haystack].map((c, i) => {
+        if (i === indexes[0]) {
+            indexes.shift();
+            c = `<mark>${c}</mark>`;
+        }
+        return c;
+    }).join('');
+    haystack = haystack.replaceAll('</mark><mark>', '');
+    return haystack;
 }
 
-export {
-    /* constants */
-    SCORE_MIN,
-    SCORE_MAX,
-
-    SCORE_GAP_LEADING,
-    SCORE_GAP_TRAILING,
-    SCORE_GAP_INNER,
-    SCORE_MATCH_CONSECUTIVE,
-    SCORE_MATCH_SLASH,
-    SCORE_MATCH_WORD,
-    SCORE_MATCH_CAPITAL,
-    SCORE_MATCH_DOT,
-
-    /* functions */
-    score,
-    positions,
-    hasMatch
-}
+export {score, highlight};
