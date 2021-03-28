@@ -14,40 +14,29 @@ const islower = s => s.toLowerCase() === s;
 const isupper = s => s.toUpperCase() === s;
 
 function precompute_bonus(haystack) {
-    /* Which positions are beginning of words */
-    var m = haystack.length;
-    var match_bonus = Array(m);
+    let last_ch = ' ';
+    return [...haystack].map(ch => {
+        let bonus = 0;
 
-    var last_ch = '/';
-    for (var i = 0; i < m; i++) {
-        var ch = haystack[i];
-
-        if (last_ch === '/') {
-            match_bonus[i] = SCORE_MATCH_SLASH;
-        } else if (last_ch === '-' || last_ch === '_' || last_ch === ' ') {
-            match_bonus[i] = SCORE_MATCH_WORD;
-        } else if (last_ch === '.') {
-            match_bonus[i] = SCORE_MATCH_DOT;
-        } else if (islower(last_ch) && isupper(ch)) {
-            match_bonus[i] = SCORE_MATCH_CAPITAL;
-        } else {
-            match_bonus[i] = 0;
-        }
+        if (last_ch === '-' || last_ch === ' ')
+            bonus = SCORE_MATCH_WORD;
+        else if (last_ch === '.')
+            bonus = SCORE_MATCH_DOT;
 
         last_ch = ch;
-    }
-
-    return match_bonus;
+        return bonus;
+    });
 }
 
+const multi_match_map = {ا: 'اأآإى', أ: 'أإءؤئ', ء: 'ءأإؤئ', ت: 'تة', ة: 'ةته', ه: 'هة', ى: 'ىي'};
+Object.keys(multi_match_map).forEach(k => {
+    multi_match_map[k] = Object.fromEntries([...multi_match_map[k]].map(c => [c, true]));
+});
 function compute(needle, haystack) {
     const D = Array(n);
     const M = Array(n);
     var n = needle.length;
     var m = haystack.length;
-
-    var lower_needle = needle.toLowerCase();
-    var lower_haystack = haystack.toLowerCase();
 
     var match_bonus = precompute_bonus(haystack);
 
@@ -64,7 +53,7 @@ function compute(needle, haystack) {
         var gap_score = i === n - 1 ? SCORE_GAP_TRAILING : SCORE_GAP_INNER;
 
         for (var j = 0; j < m; j++) {
-            if (lower_needle[i] === lower_haystack[j]) {
+            if (needle[i] === haystack[j] || (multi_match_map[needle[i]] && multi_match_map[needle[i]][haystack[j]])) {
                 var score = SCORE_MIN;
                 if (!i)
                     score = (j * SCORE_GAP_LEADING) + match_bonus[j];
